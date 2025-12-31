@@ -31,97 +31,99 @@ jobs:
           PR_APPROVE_URL: ${{ format('https://github.com/{0}/pull/{1}/files#submit-review', github.repository, github.event.pull_request.number) }}
         run: |
           payload=$(python - <<'PY'
-import json, os, sys
+          import json, os, sys
 
-def env(key, default=""):
-    return os.environ.get(key, default)
 
-is_merged = env("PR_MERGED", "false").lower() == "true"
-action = env("PR_ACTION")
+          def env(key, default=""):
+              return os.environ.get(key, default)
 
-if action == "closed" and not is_merged:
-    print("")  # no payload -> skip curl
-    sys.exit(0)
 
-title = env("PR_TITLE")
-author = env("PR_AUTHOR")
-base_ref = env("PR_BASE_REF")
-head_ref = env("PR_HEAD_REF")
-repository = env("PR_REPOSITORY")
-body = env("PR_BODY").strip() or "No description provided."
-pr_url = env("PR_URL")
-created_at = env("PR_CREATED_AT")
-merged_at = env("PR_MERGED_AT")
-merged_by = env("PR_MERGED_BY")
-approve_url = env("PR_APPROVE_URL")
-channel = env("SLACK_CHANNEL")
+          is_merged = env("PR_MERGED", "false").lower() == "true"
+          action = env("PR_ACTION")
 
-header_text = "🎉 Pull Request Merged" if is_merged else "🚀 New Pull Request"
-summary_label = "Merge Summary" if is_merged else "Summary"
-status_text = ":white_check_mark: Merged" if is_merged else ":bell: Triggered"
-context_time = merged_at if is_merged else created_at
-text_intro = f"Pull request {'merged' if is_merged else 'opened'}: *{title}* by *{author}*"
+          if action == "closed" and not is_merged:
+              print("")  # no payload -> skip curl
+              sys.exit(0)
 
-common_fields = [
-    {"type": "mrkdwn", "text": f"*Title:*\n{title}"},
-    {"type": "mrkdwn", "text": f"*Author:*\n{author}"},
-    {"type": "mrkdwn", "text": f"*Base → Head:*\n{base_ref} → {head_ref}"},
-    {"type": "mrkdwn", "text": f"*Repository:*\n{repository}"},
-]
+          title = env("PR_TITLE")
+          author = env("PR_AUTHOR")
+          base_ref = env("PR_BASE_REF")
+          head_ref = env("PR_HEAD_REF")
+          repository = env("PR_REPOSITORY")
+          body = env("PR_BODY").strip() or "No description provided."
+          pr_url = env("PR_URL")
+          created_at = env("PR_CREATED_AT")
+          merged_at = env("PR_MERGED_AT")
+          merged_by = env("PR_MERGED_BY")
+          approve_url = env("PR_APPROVE_URL")
+          channel = env("SLACK_CHANNEL")
 
-blocks = [
-    {"type": "header", "text": {"type": "plain_text", "text": header_text, "emoji": True}},
-    {"type": "section", "fields": common_fields},
-    {
-        "type": "section",
-        "text": {"type": "mrkdwn", "text": f"*{summary_label}*\n{body}"},
-    },
-]
+          header_text = "🎉 Pull Request Merged" if is_merged else "🚀 New Pull Request"
+          summary_label = "Merge Summary" if is_merged else "Summary"
+          status_text = ":white_check_mark: Merged" if is_merged else ":bell: Triggered"
+          context_time = merged_at if is_merged else created_at
+          text_intro = f"Pull request {'merged' if is_merged else 'opened'}: *{title}* by *{author}*"
 
-view_button = {
-    "type": "button",
-    "text": {"type": "plain_text", "text": "View PR", "emoji": True},
-    "url": pr_url,
-    "style": "primary",
-}
+          common_fields = [
+              {"type": "mrkdwn", "text": f"*Title:*\n{title}"},
+              {"type": "mrkdwn", "text": f"*Author:*\n{author}"},
+              {"type": "mrkdwn", "text": f"*Base → Head:*\n{base_ref} → {head_ref}"},
+              {"type": "mrkdwn", "text": f"*Repository:*\n{repository}"},
+          ]
 
-if is_merged:
-    actions_block = {
-        "type": "actions",
-        "elements": [view_button],
-    }
-else:
-    approve_button = {
-        "type": "button",
-        "text": {"type": "plain_text", "text": "Approve PR", "emoji": True},
-        "url": approve_url,
-    }
-    actions_block = {"type": "actions", "elements": [view_button, approve_button]}
+          blocks = [
+              {"type": "header", "text": {"type": "plain_text", "text": header_text, "emoji": True}},
+              {"type": "section", "fields": common_fields},
+              {
+                  "type": "section",
+                  "text": {"type": "mrkdwn", "text": f"*{summary_label}*\n{body}"},
+              },
+          ]
 
-blocks.append(actions_block)
+          view_button = {
+              "type": "button",
+              "text": {"type": "plain_text", "text": "View PR", "emoji": True},
+              "url": pr_url,
+              "style": "primary",
+          }
 
-context_suffix = f"{status_text} by GitHub Actions • {context_time}"
-if is_merged:
-    context_suffix += f" • Merged by {merged_by}"
+          if is_merged:
+              actions_block = {
+                  "type": "actions",
+                  "elements": [view_button],
+              }
+          else:
+              approve_button = {
+                  "type": "button",
+                  "text": {"type": "plain_text", "text": "Approve PR", "emoji": True},
+                  "url": approve_url,
+              }
+              actions_block = {"type": "actions", "elements": [view_button, approve_button]}
 
-blocks.append(
-    {
-        "type": "context",
-        "elements": [
-            {"type": "mrkdwn", "text": context_suffix}
-        ],
-    }
-)
+          blocks.append(actions_block)
 
-payload = {
-    "channel": channel,
-    "text": f"{text_intro}\n{pr_url}",
-    "blocks": blocks,
-}
+          context_suffix = f"{status_text} by GitHub Actions • {context_time}"
+          if is_merged:
+              context_suffix += f" • Merged by {merged_by}"
 
-print(json.dumps(payload))
-PY
-)
+          blocks.append(
+              {
+                  "type": "context",
+                  "elements": [
+                      {"type": "mrkdwn", "text": context_suffix}
+                  ],
+              }
+          )
+
+          payload = {
+              "channel": channel,
+              "text": f"{text_intro}\n{pr_url}",
+              "blocks": blocks,
+          }
+
+          print(json.dumps(payload))
+          PY
+          )
 
           if [ -z "$payload" ]; then
             echo "Skipping Slack notification for non-merged close event."
