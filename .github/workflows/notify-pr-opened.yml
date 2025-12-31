@@ -13,5 +13,78 @@ jobs:
 
     steps:	
       - name: Notify Slack	
-        run: |	
-          curl -X POST -H 'Content-type: application/json' -H 'Authorization: Bearer ${{ secrets.SLACK_TOKEN}}' --data "{\"channel\":\"testing\",\"text\":\"New PR created\\nDetails: *${{github.event.pull_request.title}}*\\nAuthor: *${{github.event.pull_request.user.login}}*\\n${{github.event.pull_request.html_url}}\"}" https://slack.com/api/chat.postMessage	
+        run: |
+          payload=$(cat <<'JSON'
+          {
+            "channel": "testing",
+            "text": "New PR created\nDetails: *${{github.event.pull_request.title}}*\nAuthor: *${{github.event.pull_request.user.login}}*\n${{github.event.pull_request.html_url}}",
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "🚀 New Pull Request",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Title:*\n${{github.event.pull_request.title}}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Author:*\n${{github.event.pull_request.user.login}}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Base → Head:*\n${{github.event.pull_request.base.ref}} → ${{github.event.pull_request.head.ref}}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Repository:*\n${{ github.repository }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Summary*\n${{ github.event.pull_request.body || 'No description provided.' }}"
+                }
+              },
+              {
+                "type": "actions",
+                "elements": [
+                  {
+                    "type": "button",
+                    "text": {
+                      "type": "plain_text",
+                      "text": "View PR",
+                      "emoji": true
+                    },
+                    "url": "${{github.event.pull_request.html_url}}",
+                    "style": "primary"
+                  }
+                ]
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": ":bell: Triggered by GitHub Actions • ${{ github.event.pull_request.created_at }}"
+                  }
+                ]
+              }
+            ]
+          }
+          JSON
+          )
+          curl -X POST \
+            -H 'Content-type: application/json' \
+            -H 'Authorization: Bearer ${{ secrets.SLACK_TOKEN}}' \
+            --data "$payload" \
+            https://slack.com/api/chat.postMessage
