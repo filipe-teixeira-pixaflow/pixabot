@@ -29,6 +29,7 @@ jobs:
           PR_MERGED_BY: ${{ github.event.pull_request.merged_by.login || github.event.pull_request.user.login }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_APPROVE_URL: ${{ format('https://github.com/{0}/pull/{1}/files#submit-review', github.repository, github.event.pull_request.number) }}
+          PR_REVIEWERS: ${{ join(github.event.pull_request.requested_reviewers.*.login, ', ') }}
         run: |
           payload=$(python - <<'PY'
           import json, os, sys
@@ -57,6 +58,13 @@ jobs:
           merged_by = env("PR_MERGED_BY")
           approve_url = env("PR_APPROVE_URL")
           channel = env("SLACK_CHANNEL")
+          reviewers_raw = env("PR_REVIEWERS").strip()
+          reviewers = (
+              [r.strip() for r in reviewers_raw.split(",") if r.strip()]
+              if reviewers_raw
+              else []
+          )
+          reviewers_text = ", ".join(f"@{r}" for r in reviewers) if reviewers else "None"
 
           header_text = "🎉 Pull Request Merged" if is_merged else "🚀 New Pull Request"
           summary_label = "Merge Summary" if is_merged else "Summary"
@@ -70,6 +78,8 @@ jobs:
               {"type": "mrkdwn", "text": f"*Base → Head:*\n{base_ref} → {head_ref}"},
               {"type": "mrkdwn", "text": f"*Repository:*\n{repository}"},
           ]
+          if reviewers:
+              common_fields.append({"type": "mrkdwn", "text": f"*Reviewers:*\n{reviewers_text}"})
 
           blocks = [
               {"type": "header", "text": {"type": "plain_text", "text": header_text, "emoji": True}},
